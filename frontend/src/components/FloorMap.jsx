@@ -119,7 +119,7 @@ function CoordinateHelper() {
 
 export default function FloorMap() {
   const [room, setRoom] = useState(defaultRoom)
-  const [tables, setTables] = useState({})
+  const [tables, setTables] = useState(mockOccupancyData.tables) // Initialize with mock data
   const layersRef = useRef({ tables: new Map(), seats: new Map() })
   
   // Use the API hook to fetch occupancy data
@@ -267,6 +267,7 @@ export default function FloorMap() {
             <div className="mt-2">
               <select 
                 className="px-3 py-1 rounded border text-sm"
+                defaultValue="2"
                 style={{ 
                   borderColor: COLORS.gold,
                   backgroundColor: COLORS.ivoryWhite,
@@ -284,10 +285,12 @@ export default function FloorMap() {
           <div className="flex items-center gap-4">
             <Legend />
             <div 
-              className="px-3 py-1 rounded-full text-xs font-medium text-white"
+              className="px-3 py-1 rounded-full text-xs font-medium"
               style={{ 
-                backgroundColor: COLORS.brightGreen,
-                boxShadow: `0 0 0 2px ${COLORS.gold}40`
+                backgroundColor: isConnected ? COLORS.brightGreen : COLORS.gray,
+                color: COLORS.white,
+                boxShadow: `0 0 0 2px ${COLORS.gold}40`,
+                opacity: 1
               }}
             >
               {isConnected ? 'Live' : 'Disconnected'}
@@ -334,9 +337,6 @@ export default function FloorMap() {
             
             {/* Tables */}
             {room.tables.map(table => renderTable(table))}
-            
-            {/* Seats */}
-            {room.seats.map(seat => renderSeat(seat))}
           </MapContainer>
         </div>
       </div>
