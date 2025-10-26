@@ -286,13 +286,14 @@ def run_detection(confidence_threshold=0.30, iou_threshold=0.45, camera_index: i
                     center_x = int((x1 + x2) / 2)
                     center_y = int((y1 + y2) / 2)
 
-                    for id, z in enumerate(zones): #check if detected center is in any zone
+                    for idx, z in enumerate(zones): 
                         if point_in_polygon((center_x, center_y), z["points"]):
                             zone_tracking[z["id"]]["currently_detected"] = True
                             if class_name == "person":
-                                zone_stats[id]["person_count"] += 1
+                                zone_stats[idx]["person_count"] += 1
                             else:
-                                zone_stats[id]["item_counts"][class_name] += 1
+                                zone_stats[idx]["item_counts"][class_name] += 1
+                            break
 
 
         last_write = 0.0
