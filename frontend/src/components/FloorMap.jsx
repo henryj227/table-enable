@@ -138,7 +138,7 @@ export default function FloorMap() {
       // Transform API data format to match our table state format
       const transformedTables = {}
       Object.entries(apiData.tablesById).forEach(([id, tableData]) => {
-        transformedTables[id] = {
+        transformedTables["table_" + id.slice(5)] = {
           status: tableData.occupied ? 'occupied' : 'free'
         }
       })
@@ -204,6 +204,7 @@ export default function FloorMap() {
         <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
           <div style={{ color: COLORS.ink }}>
             <strong>{table.id}</strong><br/>
+            <strong>{status}</strong><br/>
           </div>
         </Tooltip>
       </Circle>
