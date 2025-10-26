@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import time
 from datetime import datetime
 from pathlib import Path
 from shapely.geometry import Point, Polygon
@@ -9,38 +8,35 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+
+
 # =========================
-# Config
+# CONFIG
 # =========================
-# Base directories (backend/ and frontend/)
+
+# base directories (backend/ and frontend/)
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_PUBLIC_DIR = BASE_DIR.parent / "frontend" / "public"
 
-# Files: keep zones.json alongside this script, and write occupancy.json to frontend/public
-ZONES_FILE = BASE_DIR / "zones.json"
-OUTPUT_FILE = FRONTEND_PUBLIC_DIR / "occupancy.json"
+ZONES_FILE = BASE_DIR / "zones.json" # backend saved zones
+OUTPUT_FILE = FRONTEND_PUBLIC_DIR / "occupancy.json" # frontend read occupancy info
 
-MODEL_NAME = "yolov8s.pt"    # small & fast; you can upgrade to yolov8s.pt if you want better accuracy
+MODEL_NAME = "yolov8s.pt"
 CAM_INDEX = 1                 # default webcam (use --camera to override)
 FRAME_WIDTH = 1280           # try 1280x720; adjust if needed
 FRAME_HEIGHT = 720
 
-# Time-based occupancy thresholds (in seconds)
-OCCUPIED_THRESHOLD = 5.0    # Must detect person/object for 5 seconds to mark as occupied
-UNOCCUPIED_THRESHOLD = 3.0  # Must be clear for 3 seconds to mark as unoccupied
+# time thresholds (seconds) to activate occupied / unoccupied
+OCCUPIED_THRESHOLD = 5.0
+UNOCCUPIED_THRESHOLD = 3.0
 
-# Classes we care about (COCO names)
-ITEM_CLASSES = {
-    "backpack", "handbag", "suitcase",
-    "laptop", "cell phone", "book",
-    "bottle", "cup", "umbrella"
-}
-PERSON_CLASS = "person"
-ALLOWED_CLASSES = {"person", "backpack", "handbag", "laptop", "bottle", "cup"}
+# COCO item classes to detect occupancy
+ALLOWED_CLASSES = {"person", "backpack", "handbag", "laptop", "cell phone", "book", "bottle", "cup"}
+
 
 
 # =========================
-# Helpers
+# HELPERS
 # =========================
 
 def current_timestamp():
@@ -48,8 +44,8 @@ def current_timestamp():
     # returns current timestamp as string
 
 def now_seconds():
-    # time for duration math and intervals as float
-    return time.time()
+    return datetime.now().timestamp()
+    # returns current timestamp as float
 
 def point_in_polygon(point, polygon):
     point = Point(point)
@@ -84,6 +80,7 @@ def save_zones(zones, image_w, image_h, camera_id, output_file=ZONES_FILE):
     }
     output_file.write_text(json.dumps(payload, indent=2))
     print(f"Saved {len(zones)} zones from camera {camera_id} to {output_file}")
+    # saves annotated zones to file
 
 def build_zone_mask(image_h, image_w, zones):
     mask = np.zeros((image_h, image_w), np.uint8)
@@ -91,23 +88,17 @@ def build_zone_mask(image_h, image_w, zones):
         points = np.array(z["points"], np.int32)
         cv2.fillPoly(mask, [points], 255)
     return mask
-    #returns a black / white mask to force detection only on zones
-
+    # returns a black / white mask to force detection only on zones
 
 def load_zones(input_file = ZONES_FILE):
     data = json.loads(input_file.read_text())
     return data["zones"], data.get("image_size"), data.get("camera_id")
     # loads zones from file
 
-
 def coco_names_from_model(model):
-    # Ultralytics models expose .names (dict: {class_id: name})
     names = getattr(model, "names", None)
-    if names is None:  # older internals
-        names = getattr(getattr(model, "model", None), "names", None)
-    if not names:
-        raise RuntimeError("Could not read class names from YOLO model.")
-    return dict(names)  # ensure regular dict
+    return names
+    # returns COCO class names from model as dict: {class_id: name}
 
 
 
