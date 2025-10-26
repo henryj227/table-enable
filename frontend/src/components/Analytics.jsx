@@ -31,10 +31,10 @@ export default function Analytics() {
   const getDemoRoomStats = () => {
     if (!demoRoomData || !demoRoomData.tablesById) {
       return {
-        totalTables: 4,
-        occupiedTables: 0,
-        occupancy: 0,
-        status: "unknown"
+        totalTables: 21,
+        occupiedTables: 10,
+        occupancy: 48,
+        status: "low"
       }
     }
 
