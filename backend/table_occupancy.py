@@ -59,7 +59,8 @@ def draw_zones(image, zones, active_zone=None):
     for z in zones:
         points = np.array(z["points"], np.int32)
         cv2.polylines(image, [points], isClosed=True, color=(255, 0, 0), thickness=2)
-        cv2.putText(image, z["id"], tuple(points[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)
+        center = polygon_center_calculation(points)
+        cv2.putText(image, z["id"], tuple(center), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)
 
     # active zone (being drawn)
     if active_zone and len(active_zone) > 0:
@@ -80,13 +81,19 @@ def save_zones(zones, image_w, image_h, camera_id, output_file=ZONES_FILE):
     print(f"Saved {len(zones)} zones from camera {camera_id} to {output_file}")
     # saves annotated zones to file
 
-def build_zone_mask(image_h, image_w, zones):
-    mask = np.zeros((image_h, image_w), np.uint8)
+def build_zone_mask(width, height, zones):
+    mask = np.zeros((height, width), np.uint8) #mask w/ shape height, width
     for z in zones:
         points = np.array(z["points"], np.int32)
         cv2.fillPoly(mask, [points], 255)
     return mask
     # returns a black / white mask to force detection only on zones
+
+def polygon_center_calculation(polygon_points):
+    points = np.asarray(polygon_points, dtype=float)
+    poly = Polygon(points)
+    return int(poly.centroid.x), int(poly.centroid.y) #Shapely center calculation on polygon
+    # calculates center of polygon
 
 def load_zones(input_file = ZONES_FILE):
     data = json.loads(input_file.read_text())
@@ -153,7 +160,8 @@ def annotate(camera_index: int = CAM_INDEX):
             break
 
         draw_zones(frame, zones, active_points) # draw zones
-
+        fps_text = f"'q' to quit"
+        cv2.putText(frame, fps_text, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
         cv2.imshow("Annotate Tables", frame) # updates window with frame (live feed)
 
         key = cv2.waitKey(10) & 0xFF # wait for key press (10ms), masked to 8 bits
@@ -183,125 +191,107 @@ def annotate(camera_index: int = CAM_INDEX):
     cv2.destroyAllWindows()
 
 
+
 # =========================
-# Run Mode (Detection)
+# DETECTION MODE
 # =========================
-def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX):
+
+def run_detection(confidence_threshold=0.30, iou_threshold=0.45, camera_index: int = CAM_INDEX):
     if not ZONES_FILE.exists():
         raise FileNotFoundError("zones.json not found. Run annotate mode first.")
 
     zones, img_meta, camera_id = load_zones(ZONES_FILE)
     model = YOLO(MODEL_NAME)
-    class_map = coco_names_from_model(model)
+    class_map = coco_names_from_model(model) #classification names
 
-    # choose allowed classes (filter)
-    ALLOWED_CLASSES = {
-        "person", "backpack", "handbag", "laptop",
-        "bottle", "cup", "book", "cell phone", "suitcase"
-    }
-
-    # Open camera consistently with annotate() for better Windows support
-    capture = open_camera(camera_index)
+    capture = open_camera(camera_index) 
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
 
-    # Build static ROI mask
-    ret, test_frame = capture.read()
-    if not ret:
+    opencvstatus, test_frame = capture.read() # read frame from camera
+    if not opencvstatus:
         raise RuntimeError("Cannot read from webcam.")
-    H, W = test_frame.shape[:2]
 
-    # Scale zones to current capture size if needed
-    zones_scaled = zones
-    if img_meta and isinstance(img_meta, dict):
-        src_w = int(img_meta.get("width", W))
-        src_h = int(img_meta.get("height", H))
-        if src_w != W or src_h != H:
-            sx = W / max(src_w, 1)
-            sy = H / max(src_h, 1)
-            zones_scaled = []
-            for z in zones:
-                pts = [(int(round(x * sx)), int(round(y * sy))) for (x, y) in z["points"]]
-                zones_scaled.append({"id": z["id"], "points": pts})
+    zone_mask = build_zone_mask(FRAME_WIDTH, FRAME_HEIGHT, zones)
 
-    zone_mask = build_zone_mask(H, W, zones_scaled)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    # Time-based occupancy tracking
+    # initialize time-based zone tracking dict
     zone_tracking = {}
-    for z in zones_scaled:
+    for z in zones:
         zone_tracking[z["id"]] = {
-            "currently_detected": False,      # Current frame detection state
-            "first_detected_time": None,      # When detection first started
-            "last_detected_time": None,       # When detection was last seen
-            "stable_occupied": False,        # Final stable state
-            "last_state_change": current_timestamp()  # When state last changed (string for metadata)
-        }
-
-    last_write = 0.0
-    write_interval = 0.5
-    # Ensure output directory exists
-    try:
-        OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        pass
+        "currently_detected": False,      # current detection state
+        "first_detected_time": None,      # first detection time
+        "last_detected_time": None,       # last detection time
+        "stable_occupied": False,         # stabilized occupied state
+        "last_state_change": current_timestamp()
+    }
 
     while True:
-        ok, frame = capture.read()
-        if not ok:
+        opencvstatus, frame = capture.read() # read frame from camera
+        if not opencvstatus: # if unable to read frame, exit
             break
 
-        # mask outside zones
-        masked_frame = cv2.bitwise_and(frame, frame, mask=zone_mask)
+        masked_image = cv2.bitwise_and(frame, frame, mask=zone_mask) #apply mask
 
-        # run YOLO only on masked area, with class filter & TTA
-        results = model.predict(
-        source=masked_frame,
-        conf=conf_thres,
-        iou=iou_thres,
-        imgsz=960,
-        classes=[cid for cid, name in class_map.items() if name in ALLOWED_CLASSES],
-        verbose=False
+        allowed_class_ids = [] #filter to only allowed classes
+        for class_id, class_name in class_map.items():
+            if class_name in ALLOWED_CLASSES:
+                allowed_class_ids.append(class_id)
+
+        # run YOLO on masked image
+        results    = model.predict(
+        source     = masked_image,
+        conf = confidence_threshold,
+        iou        = iou_threshold, #non maximum suppression IoU threshold (greatest conf kept)
+        imgsz      = 960,
+        classes    = allowed_class_ids,
+        verbose    = False
         )
-
-        # use monotonic seconds for all arithmetic
-        current_time = now_seconds()
         
-        # Reset detection state for all zones
-        for zid in zone_tracking:
-            zone_tracking[zid]["currently_detected"] = False
+        for zone_id in zone_tracking: # reset current detection state
+            zone_tracking[zone_id]["currently_detected"] = False
 
         zone_stats = []
-        for z in zones_scaled:
+        for z in zones:
             zone_stats.append({
-                "id": z["id"],
+                "id"          : z["id"],
                 "person_count": 0,
-                "item_counts": {k: 0 for k in sorted(ALLOWED_CLASSES - {"person"})},
-                "occupied": False
+                "item_counts" : {k: 0 for k in sorted(ALLOWED_CLASSES - {"person"})},
+                "occupied"    : False
             })
 
-        if results and len(results) > 0:
+        # process detections by checking if boxes' centers are in zones
+        if results and len(results) > 0: 
             r = results[0]
             if r.boxes is not None and len(r.boxes) > 0:
-                boxes = r.boxes.xyxy.cpu().numpy().astype(int)
-                cls_ids = r.boxes.cls.cpu().numpy().astype(int)
-                confs = r.boxes.conf.cpu().numpy()
+                boxes = r.boxes.xyxy.cpu().numpy().astype(int)      # pixel coords
+                class_ids = r.boxes.cls.cpu().numpy().astype(int)   # class IDs
+                confidence = r.boxes.conf.cpu().numpy()             # confidences
 
-                for (x1,y1,x2,y2), cid, c in zip(boxes, cls_ids, confs):
-                    cls_name = class_map.get(cid, str(cid))
-                    if cls_name not in ALLOWED_CLASSES:
-                        continue  # skip anything else
+                for (x1,y1,x2,y2), class_id, confidence in zip(boxes, class_ids, confidence): #for each detection
+                    class_name = class_map.get(class_id, str(class_id)) #get class name
+                    if class_name not in ALLOWED_CLASSES:
+                        continue 
 
-                    cx, cy = int((x1+x2)/2), int((y1+y2)/2)
+                    #calculate center of detected box
+                    center_x = int((x1 + x2) / 2)
+                    center_y = int((y1 + y2) / 2)
 
-                    for idx, z in enumerate(zones_scaled):
-                        if point_in_polygon((cx, cy), z["points"]):
+                    for id, z in enumerate(zones): #check if detected center is in any zone
+                        if point_in_polygon((center_x, center_y), z["points"]):
                             zone_tracking[z["id"]]["currently_detected"] = True
-                            if cls_name == "person":
-                                zone_stats[idx]["person_count"] += 1
+                            if class_name == "person":
+                                zone_stats[id]["person_count"] += 1
                             else:
-                                zone_stats[idx]["item_counts"][cls_name] += 1
+                                zone_stats[id]["item_counts"][class_name] += 1
 
-        # Time-based occupancy logic
+
+        last_write = 0.0
+        write_interval = 0.5
+        current_time = now_seconds()
+
+        # update zone states based on detection timing
         for zs in zone_stats:
             zid = zs["id"]
             zs["conf"] = 1.0
@@ -340,11 +330,11 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
             zs["occupied"] = tracking["stable_occupied"]
 
         # Draw zones overlay again (with status)
-        for zs, z in zip(zone_stats, zones_scaled):
-            pts = np.array(z["points"], dtype=np.int32)
+        for zs, z in zip(zone_stats, zones):
+            points = np.array(z["points"], dtype=np.int32)
             tracking = zone_tracking[zs["id"]]
             
-            # Color coding: Green=occupied, Red=unoccupied, Yellow=detecting but not yet occupied
+            #Green=occupied, Red=unoccupied, Yellow=detecting but not yet occupied
             if zs["occupied"]:
                 color = (0, 200, 0)  # Green - occupied
                 status_text = "OCCUPIED"
@@ -356,46 +346,37 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
                 color = (0, 0, 200)  # Red - unoccupied
                 status_text = "UNOCCUPIED"
             
-            cv2.polylines(frame, [pts], isClosed=True, color=color, thickness=2)
-            M = cv2.moments(pts)
-            if M["m00"] != 0:
-                cx, cy = int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"])
-                
+            cv2.polylines(frame, [points], isClosed=True, color=color, thickness=2)
+            center = polygon_center_calculation(points)
+            if center is not None:
+                cx, cy = center
+
                 # Main status label
                 cv2.putText(frame, status_text, (cx-50, cy-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2, cv2.LINE_AA)
-                
+
                 # Detection counts
-                count_label = f'P={zs["person_count"]} Items={sum(zs["item_counts"].values())}'
+                count_label = f'Persons = {zs["person_count"]} Items = {sum(zs["item_counts"].values())}'
                 cv2.putText(frame, count_label, (cx-50, cy+15),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
-
-        # Show
-        fps_text = f"Press 'w' to write JSON, 'q' to quit"
+        fps_text = f"'q' to quit"
         cv2.putText(frame, fps_text, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
-        cv2.imshow("Table Occupancy", frame)
+        cv2.imshow("Table Occupancy", frame) # updates window with frame (live feed)
 
-        # Write JSON periodically
+        # write to JSON
         t = now_seconds()
         if t - last_write >= write_interval:
             payload = {
-                "room_id": "lib_1",
+                "room_id": f"camera_{camera_id}",
                 "updated_at": current_timestamp(),
                 "zones": zone_stats
             }
             OUTPUT_FILE.write_text(json.dumps(payload, indent=2))
             last_write = t
 
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('w'):
-            payload = {
-                "updated_at": current_timestamp(),
-                "zones": zone_stats
-            }
-            OUTPUT_FILE.write_text(json.dumps(payload, indent=2))
-            print(f"Wrote {OUTPUT_FILE}")
-        elif key == ord('q'):
+        key = cv2.waitKey(10) & 0xFF 
+        if key == ord('q'):
             break
 
     capture.release()
@@ -403,7 +384,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
 
 
 # =========================
-# Main
+# MAIN
 # =========================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Table occupancy from webcam with YOLO")
@@ -418,4 +399,4 @@ if __name__ == "__main__":
     if args.mode == "annotate":
         annotate(camera_index=cam_idx)
     else:
-        run_detection(conf_thres=args.conf, iou_thres=args.iou, camera_index=cam_idx)
+        run_detection(confidence_threshold=args.conf, iou_threshold=args.iou, camera_index=cam_idx)
