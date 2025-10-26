@@ -8,10 +8,7 @@ function App() {
   
   const COLORS = {
     burgundy: '#4f0f12',
-    gold: '#D39B00',
-    ivoryWhite: '#FFFEF7',
-    ink: '#111827',
-    gray: '#9CA3AF'
+    gold: '#D39B00'
   }
 
   const renderPage = () => {

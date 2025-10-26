@@ -10,22 +10,3 @@
 body {
   font-family: 'Helvetica', 'Arial', sans-serif;
 }
-
-/* Custom transitions for map elements */
-.map-shape {
-  transition: fill 200ms ease-in-out, stroke 200ms ease-in-out, opacity 200ms ease-in-out;
-}
-
-/* Grid label tooltips - permanent centered labels */
-.grid-label-tooltip {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  pointer-events: none !important;
-}
-
-.grid-label-tooltip::before {
-  display: none !important;
-}

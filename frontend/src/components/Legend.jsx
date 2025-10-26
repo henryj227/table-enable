@@ -1,7 +1,7 @@
 export default function Legend() {
   const COLORS = {
     brightGreen: '#00FF00',
-    darkGray: '#404040',
+    burgundy: '#7B1E28',
     ink: '#111827'
   }
 
@@ -17,11 +17,10 @@ export default function Legend() {
       <div className="flex items-center gap-2">
         <div 
           className="w-3 h-3 rounded" 
-          style={{ backgroundColor: COLORS.darkGray }}
+          style={{ backgroundColor: COLORS.burgundy }}
         ></div>
         <span style={{ color: COLORS.ink }}>Occupied</span>
       </div>
-      {/* opacity reflects model confidence */}
     </div>
   )
 }

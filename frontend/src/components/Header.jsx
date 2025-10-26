@@ -1,14 +1,8 @@
-import Logo from './Logo'
-
 export default function Header({ currentPage, setCurrentPage }) {
   const COLORS = {
     burgundy: '#4f0f12',
-    gold: '#D39B00', 
-    ivoryWhite: '#FFFEF7',
-    ink: '#111827',
-    gray: '#9CA3AF',
-    brightGreen: '#00FF00',
-    darkGray: '#404040'
+    gold: '#D39B00',
+    brightGreen: '#00FF00'
   }
 
   return (
@@ -23,7 +17,11 @@ export default function Header({ currentPage, setCurrentPage }) {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Logo />
+            <div className="flex items-center">
+              <h1 className="text-3xl font-bold text-white">
+                Table Enable
+              </h1>
+            </div>
           </div>
           
           {/* Navigation */}

@@ -3,8 +3,6 @@ import { useOccupancy } from '../lib/useOccupancy.js'
 
 export default function Analytics() {
   const COLORS = {
-    burgundy: '#7B1E28',
-    burgundyLight: '#8B2A35',
     gold: '#D39B00', 
     ivoryWhite: '#FFFEF7',
     ink: '#111827',
@@ -13,22 +11,22 @@ export default function Analytics() {
     darkGray: '#404040'
   }
 
-  // Fetch real-time data for Demo Room
+  // getting data
   const { data: demoRoomData, loading, error } = useOccupancy('camera_1', 3000)
   const [lastFetchTime, setLastFetchTime] = useState(new Date())
   const [currentTime, setCurrentTime] = useState(new Date())
 
-  // Update current time every 30 seconds to refresh relative timestamps
+  // 30 sec refresh
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
-    }, 30000) // Update every 30 seconds
+    }, 30000)
 
     return () => clearInterval(timer)
   }, [])
 
-  // Calculate Demo Room statistics from real data
-  const getDemoRoomStats = () => {
+  // room stats
+  const get245BeaconStats = () => {
     if (!demoRoomData || !demoRoomData.tablesById) {
       return {
         totalTables: 21,
@@ -50,19 +48,17 @@ export default function Analytics() {
     return { totalTables, occupiedTables, occupancy, status }
   }
 
-  // Update last fetch time whenever data changes
   useEffect(() => {
     if (demoRoomData && !loading && !error) {
-      setLastFetchTime(new Date())
+      setLastFetchTime(new Date()) // update last fetch time
     }
   }, [demoRoomData, loading, error])
 
-  const demoRoomStats = getDemoRoomStats()
+  const beaconStats = get245BeaconStats()
   
-  // Format timestamp to device local time (uses currentTime to trigger updates)
   const formatTimestamp = (date) => {
     const now = currentTime
-    const diff = Math.abs(Math.floor((now - date) / 1000)) // difference in seconds (absolute value)
+    const diff = Math.abs(Math.floor((now - date) / 1000)) // secs diff
     
     if (diff < 60) return `${diff} sec ago`
     if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
@@ -72,14 +68,14 @@ export default function Analytics() {
   
   const lastUpdated = demoRoomData ? formatTimestamp(lastFetchTime) : "N/A"
 
-  // Mock data for building occupancy
+  // Mock data for analytics page
   const buildings = [
     {
-      name: "Demo Room",
-      occupancy: demoRoomStats.occupancy,
-      status: demoRoomStats.status,
-      totalTables: demoRoomStats.totalTables,
-      occupiedTables: demoRoomStats.occupiedTables,
+      name: "245 Beacon St.",
+      occupancy: beaconStats.occupancy,
+      status: beaconStats.status,
+      totalTables: beaconStats.totalTables,
+      occupiedTables: beaconStats.occupiedTables,
       lastUpdated: loading ? "Loading..." : (error ? "Error" : lastUpdated),
       isLive: true
     },
