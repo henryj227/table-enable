@@ -14,7 +14,7 @@ export default function Analytics() {
   }
 
   // Fetch real-time data for Demo Room
-  const { data: demoRoomData, loading, error } = useOccupancy('lib_1', 3000)
+  const { data: demoRoomData, loading, error } = useOccupancy('camera_1', 3000)
   const [lastFetchTime, setLastFetchTime] = useState(new Date())
   const [currentTime, setCurrentTime] = useState(new Date())
 

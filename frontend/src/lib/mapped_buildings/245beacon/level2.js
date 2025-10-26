@@ -19,31 +19,31 @@ const tableRadius = 10  // pixels
 
 // Position 16 tables using direct pixel coordinates (X, Y)
 //west column
-const table1 = createTable("table_1", 146, 205, tableRadius)
-const table2 = createTable("table_2", 145, 310, tableRadius)
-const table3 = createTable("table_3", 145, 358, tableRadius)
-const table4 = createTable("table_4", 143, 468, tableRadius)
-const table5 = createTable("table_5", 143, 601, tableRadius)
-const table6 = createTable("table_6", 143, 735, tableRadius)
-const table7 = createTable("table_7", 147, 835, tableRadius)
-const table8 = createTable("table_8", 147, 888, tableRadius)
-const table9 = createTable("table_9", 73, 963, tableRadius)
-const table10 = createTable("table_10", 73, 1155, tableRadius)
+const table1 = createTable("zone_1", 146, 205, tableRadius)
+const table2 = createTable("zone_2", 145, 310, tableRadius)
+const table3 = createTable("zone_3", 145, 358, tableRadius)
+const table4 = createTable("zone_4", 143, 468, tableRadius)
+const table5 = createTable("zone_5", 143, 601, tableRadius)
+const table6 = createTable("zone_6", 143, 735, tableRadius)
+const table7 = createTable("zone_7", 147, 835, tableRadius)
+const table8 = createTable("zone_8", 147, 888, tableRadius)
+const table9 = createTable("zone_9", 73, 963, tableRadius)
+const table10 = createTable("zone_10", 73, 1155, tableRadius)
 
 //north row
-const table11 = createTable("table_11", 487, 1241, tableRadius)
-const table12 = createTable("table_12", 538, 1241, tableRadius)
-const table13 = createTable("table_13", 664, 1241, tableRadius)
-const table14 = createTable("table_14", 714, 1241, tableRadius)
-const table15 = createTable("table_15", 825, 1241, tableRadius)
-const table16 = createTable("table_16", 876, 1241, tableRadius)
+const table11 = createTable("zone_11", 487, 1241, tableRadius)
+const table12 = createTable("zone_12", 538, 1241, tableRadius)
+const table13 = createTable("zone_13", 664, 1241, tableRadius)
+const table14 = createTable("zone_14", 714, 1241, tableRadius)
+const table15 = createTable("zone_15", 825, 1241, tableRadius)
+const table16 = createTable("zone_16", 876, 1241, tableRadius)
 
 //east column
-const table17 = createTable("table_17", 669, 450, tableRadius)
-const table18 = createTable("table_18", 664, 530, tableRadius)
-const table19 = createTable("table_19", 664, 610, tableRadius)
-const table20 = createTable("table_20", 655, 705, tableRadius)
-const table21 = createTable("table_21", 680, 747, tableRadius)
+const table17 = createTable("zone_17", 669, 450, tableRadius)
+const table18 = createTable("zone_18", 664, 530, tableRadius)
+const table19 = createTable("zone_19", 664, 610, tableRadius)
+const table20 = createTable("zone_20", 655, 705, tableRadius)
+const table21 = createTable("zone_21", 680, 747, tableRadius)
 
 // Room geometry sized to the floorplan image
 export const defaultRoom = {

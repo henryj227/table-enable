@@ -377,7 +377,7 @@ def run_detection(confidence_threshold=0.30, iou_threshold=0.45, camera_index: i
         if t - last_write >= write_interval:
             payload = {
                 "room_id": f"camera_{camera_id}",
-                "updated_at": current_timestamp(),
+                "updated_at": now_seconds(),
                 "zones": zone_stats
             }
             OUTPUT_FILE.write_text(json.dumps(payload, indent=2))

@@ -129,7 +129,7 @@ export default function FloorMap() {
   ]
   
   // Use the API hook to fetch occupancy data
-  const { data: apiData, loading, error } = useOccupancy('lib_1', 3000)
+  const { data: apiData, loading, error } = useOccupancy('camera_1', 3000)
   const [isConnected, setIsConnected] = useState(true)
 
   // Update tables when API data arrives
@@ -238,7 +238,7 @@ export default function FloorMap() {
                   const id = e.target.value
                   setSelectedFloor(id)
                   const f = floors.find(fl => fl.id === id)
-                  if (f) setRoom(f.room)
+                  if (f) {setRoom(f.room)}
                 }}
               >
                 {floors.map(f => (
