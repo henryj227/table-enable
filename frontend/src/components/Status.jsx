@@ -31,7 +31,6 @@ export default function Status() {
 
   // Use the API hook to fetch occupancy data
   const { data: apiData, loading, error } = useOccupancy('camera_1', 3000)
-  console.log(apiData)
 
   // Update tables when API data arrives
   useEffect(() => {
@@ -44,6 +43,7 @@ export default function Status() {
         }
       })
       setTables(transformedTables)
+      console.log(Object.keys(tables).length)
       setIsConnected(true)
     }
   }, [apiData])
@@ -67,7 +67,7 @@ export default function Status() {
               {room.name}
             </h1>
             <p className="text-sm mt-1" style={{ color: COLORS.gray }}>
-              {room.tables.length} tables
+              {Object.keys(tables).length} tables
             </p>
           </div>
           <div className="flex items-center gap-2">
