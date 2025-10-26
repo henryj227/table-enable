@@ -38,6 +38,15 @@ export default function Header({ currentPage, setCurrentPage }) {
               Live Map
             </button>
             <button 
+              onClick={() => setCurrentPage('status')}
+              className="px-3 py-2 text-sm font-medium transition-colors text-white hover:opacity-80"
+              style={{ 
+                borderBottom: currentPage === 'status' ? `2px solid ${COLORS.gold}` : 'none'
+              }}
+            >
+              Status
+            </button>
+            <button 
               onClick={() => setCurrentPage('analytics')}
               className="px-3 py-2 text-sm font-medium transition-colors text-white hover:opacity-70"
               style={{ 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Header from './components/Header'
 import FloorMap from './components/FloorMap'
+import Status from './components/Status'
 import Analytics from './components/Analytics'
 
 function App() {
@@ -18,6 +19,8 @@ function App() {
     switch (currentPage) {
       case 'analytics':
         return <Analytics />
+      case 'status':
+        return <Status />
       case 'live-map':
       default:
         return <FloorMap />
