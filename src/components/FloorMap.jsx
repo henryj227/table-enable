@@ -211,7 +211,9 @@ export default function FloorMap() {
   }, [error])
 
   const renderTable = (table) => {
+    console.log(tables);
     const state = tables[table.id]
+    console.log(state)
     const status = state?.status || 'unknown'
     const confidence = state?.confidence || 0.5
     const fillColor = colorFor(status)

@@ -31,10 +31,10 @@ const tableSpacing = 225; // Distance from center to each table (half-diagonal s
 const centerX = gridSquareSize / 2; // 600
 const centerY = gridSquareSize / 2; // 600
 
-const table1 = createTableWithChairs("t1", centerX - tableSpacing, centerY - tableSpacing, tableRadius, 50); // top-left
-const table2 = createTableWithChairs("t2", centerX + tableSpacing, centerY - tableSpacing, tableRadius, 50); // top-right
-const table3 = createTableWithChairs("t3", centerX - tableSpacing, centerY + tableSpacing, tableRadius, 50); // bottom-left
-const table4 = createTableWithChairs("t4", centerX + tableSpacing, centerY + tableSpacing, tableRadius, 50); // bottom-right
+const table1 = createTableWithChairs("table_1", centerX - tableSpacing, centerY - tableSpacing, tableRadius, 50); // top-left
+const table2 = createTableWithChairs("table_2", centerX + tableSpacing, centerY - tableSpacing, tableRadius, 50); // top-right
+const table3 = createTableWithChairs("table_3", centerX - tableSpacing, centerY + tableSpacing, tableRadius, 50); // bottom-left
+const table4 = createTableWithChairs("table_4", centerX + tableSpacing, centerY + tableSpacing, tableRadius, 50); // bottom-right
 
 // Room geometry with 4 tables - 4 cols × 4 rows grid (added sections 9 and 10)
 export const defaultRoom = {
@@ -58,10 +58,10 @@ export const defaultRoom = {
 // Mock occupancy data for visualization - 4 tables with varied statuses
 export const mockOccupancyData = {
   tables: {
-    "t1": { status: "occupied", confidence: 0.85 },
-    "t2": { status: "free", confidence: 0.92 },
-    "t3": { status: "occupied", confidence: 0.78 },
-    "t4": { status: "free", confidence: 0.88 }
+    "table_1": { status: "occupied", confidence: 0.85 },
+    "table_2": { status: "free", confidence: 0.92 },
+    "table_3": { status: "occupied", confidence: 0.78 },
+    "table_4": { status: "free", confidence: 0.88 }
   },
   seats: {}
 };

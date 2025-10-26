@@ -1,0 +1,6 @@
+node_modules
+.env
+yolov8s.pt
+zones.json
+occupancy.json
+package-lock.json

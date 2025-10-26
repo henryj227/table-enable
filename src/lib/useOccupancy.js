@@ -34,7 +34,6 @@ export function useOccupancy(roomId, intervalMs = 3000) {
       if (timer.current) clearInterval(timer.current);
     };
   }, [roomId, intervalMs]);
-
   return { data, loading, error };
 }
 
