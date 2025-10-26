@@ -30,7 +30,8 @@ export default function Status() {
   const [isConnected, setIsConnected] = useState(true)
 
   // Use the API hook to fetch occupancy data
-  const { data: apiData, loading, error } = useOccupancy('lib_1', 3000)
+  const { data: apiData, loading, error } = useOccupancy('camera_1', 3000)
+  console.log(apiData)
 
   // Update tables when API data arrives
   useEffect(() => {
