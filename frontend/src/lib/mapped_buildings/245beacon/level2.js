@@ -18,37 +18,32 @@ const roomHeight = 1300
 const tableRadius = 10  // pixels
 
 // Position 16 tables using direct pixel coordinates (X, Y)
-// Column 1 (left)
-const table1 = createTable("table_1", 143, 468, tableRadius)
-const table2 = createTable("table_2", 143, 601, tableRadius)
-const table3 = createTable("table_3", 143, 735, tableRadius)
-const table4 = createTable("table_4", 147, 835, tableRadius)
+//west column
+const table1 = createTable("table_1", 146, 205, tableRadius)
+const table2 = createTable("table_2", 145, 310, tableRadius)
+const table3 = createTable("table_3", 145, 358, tableRadius)
+const table4 = createTable("table_4", 143, 468, tableRadius)
+const table5 = createTable("table_5", 143, 601, tableRadius)
+const table6 = createTable("table_6", 143, 735, tableRadius)
+const table7 = createTable("table_7", 147, 835, tableRadius)
+const table8 = createTable("table_8", 147, 888, tableRadius)
+const table9 = createTable("table_9", 73, 963, tableRadius)
+const table10 = createTable("table_10", 73, 1155, tableRadius)
 
-// Column 2
-const table5 = createTable("table_5", 145, 358, tableRadius)
-const table6 = createTable("table_6", 145, 310, tableRadius)
-const table7 = createTable("table_7", 147, 888, tableRadius)
-const table8 = createTable("table_8", 73, 963, tableRadius)
-
-// Column 3
-const table9 = createTable("table_9", 73, 1155, tableRadius)
-const table10 = createTable("table_10", 146, 205, tableRadius)
+//north row
 const table11 = createTable("table_11", 487, 1241, tableRadius)
 const table12 = createTable("table_12", 538, 1241, tableRadius)
-
-// Column 4 (right)
 const table13 = createTable("table_13", 664, 1241, tableRadius)
 const table14 = createTable("table_14", 714, 1241, tableRadius)
 const table15 = createTable("table_15", 825, 1241, tableRadius)
 const table16 = createTable("table_16", 876, 1241, tableRadius)
 
-// Additional tables (17-22)
+//east column
 const table17 = createTable("table_17", 669, 450, tableRadius)
 const table18 = createTable("table_18", 664, 530, tableRadius)
 const table19 = createTable("table_19", 664, 610, tableRadius)
 const table20 = createTable("table_20", 655, 705, tableRadius)
 const table21 = createTable("table_21", 680, 747, tableRadius)
-const table22 = createTable("table_22", 671, 836, tableRadius)
 
 // Room geometry sized to the floorplan image
 export const defaultRoom = {
@@ -62,11 +57,11 @@ export const defaultRoom = {
     table9, table10, table11, table12,
     table13, table14, table15, table16,
     table17, table18, table19, table20,
-    table21, table22
+    table21
   ]
 }
 
-// Mock occupancy data for visualization - 22 tables with varied statuses
+// mock data
 export const mockOccupancyData = {
   tables: {
     "table_1": { status: "occupied", confidence: 0.85 },
