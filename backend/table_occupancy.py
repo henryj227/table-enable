@@ -47,6 +47,10 @@ def current_timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     # returns current timestamp as string
 
+def now_seconds():
+    # time for duration math and intervals as float
+    return time.time()
+
 def point_in_polygon(point, polygon):
     point = Point(point)
     polygon = Polygon(polygon)
@@ -54,47 +58,46 @@ def point_in_polygon(point, polygon):
     # returns True/False for point in polygon
     # used later for if detected object is in zone
 
-def draw_zones(frame, zones, active_zone=None):
-    """Draw saved zones and the currently-being-drawn zone."""
-    # Saved zones
+def draw_zones(image, zones, active_zone = None):
+    # draw all saved zones from file and currently active (being drawn) zone
     for z in zones:
-        pts = np.array(z["points"], dtype=np.int32)
-        cv2.polylines(frame, [pts], isClosed=True, color=(0, 255, 255), thickness=2)
-        # label near centroid
-        M = cv2.moments(pts)
+        points = np.array(z["points"], np.int32)
+        cv2.polylines(image, [points], isClosed=True, color=(255,0,0), thickness=2)
+        M = cv2.moments(points)
         if M["m00"] != 0:
-            cx, cy = int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"])
-            cv2.putText(frame, z["id"], (cx-20, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 2, cv2.LINE_AA)
-
-    # Active zone (while annotating)
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+            cv2.putText(image, z["id"], (cX - 20, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)
+    # active zone (being drawn)
     if active_zone and len(active_zone) > 0:
-        pts = np.array(active_zone, dtype=np.int32)
-        cv2.polylines(frame, [pts], isClosed=False, color=(0, 165, 255), thickness=2)
+        points = np.array (active_zone, np.int32)
+        cv2.polylines(image, [points], isClosed=True, color=(0,255,0), thickness=2)
         for p in active_zone:
-            cv2.circle(frame, p, 4, (0, 165, 255), -1)
+            cv2.circle(image, tuple(p), radius=5, color=(0,255,0), thickness=-1)
 
-
-def save_zones(zones, frame_w, frame_h, out_path=ZONES_FILE):
+def save_zones(zones, image_w, image_h, camera_id, output_file=ZONES_FILE):
     payload = {
-        "image_size": {"width": frame_w, "height": frame_h},
+        "camera_id": camera_id,
+        "image_size": {"width": image_w, "height": image_h},
         "zones": zones,
-        "updated_at": time.time()
+        "timestamp": current_timestamp()
     }
-    out_path.write_text(json.dumps(payload, indent=2))
-    print(f"Saved {len(zones)} zones to {out_path}")
+    output_file.write_text(json.dumps(payload, indent=2))
+    print(f"Saved {len(zones)} zones from camera {camera_id} to {output_file}")
 
-def build_zone_mask(width, height, zones):
-    """Return a single-channel uint8 mask with 255 inside any zone, 0 outside."""
-    mask = np.zeros((height, width), dtype=np.uint8)
+def build_zone_mask(image_h, image_w, zones):
+    mask = np.zeros((image_h, image_w), np.uint8)
     for z in zones:
-        pts = np.array(z["points"], dtype=np.int32)
-        cv2.fillPoly(mask, [pts], 255)
+        points = np.array(z["points"], np.int32)
+        cv2.fillPoly(mask, [points], 255)
     return mask
+    #returns a black / white mask to force detection only on zones
 
 
-def load_zones(in_path=ZONES_FILE):
-    data = json.loads(in_path.read_text())
-    return data["zones"], data.get("image_size")
+def load_zones(input_file = ZONES_FILE):
+    data = json.loads(input_file.read_text())
+    return data["zones"], data.get("image_size"), data.get("camera_id")
+    # loads zones from file
 
 
 def coco_names_from_model(model):
@@ -135,7 +138,7 @@ def annotate(camera_index: int = CAM_INDEX):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
 
     zones = []
-    active_pts = []
+    active_points = []
     zone_counter = 1
 
     print("Annotation controls:")
@@ -146,9 +149,9 @@ def annotate(camera_index: int = CAM_INDEX):
     print("  - 'q'       : quit")
 
     def on_mouse(event, x, y, flags, param):
-        nonlocal active_pts
+        nonlocal active_points
         if event == cv2.EVENT_LBUTTONDOWN:
-            active_pts.append((x, y))
+            active_points.append((x, y))
 
     cv2.namedWindow("Annotate Tables")
     cv2.setMouseCallback("Annotate Tables", on_mouse)
@@ -158,31 +161,31 @@ def annotate(camera_index: int = CAM_INDEX):
         if not ok:
             break
 
-        draw_zones(frame, zones, active_pts)
-        cv2.putText(frame, f"Zone points: {len(active_pts)}", (10, 25),
+        draw_zones(frame, zones, active_points)
+        cv2.putText(frame, f"Zone points: {len(active_points)}", (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
         cv2.imshow("Annotate Tables", frame)
         key = cv2.waitKey(10) & 0xFF
 
         if key == ord('n'):
-            if len(active_pts) >= 3:
+            if len(active_points) >= 3:
                 zones.append({
                     "id": f"table_{zone_counter}",
-                    "points": active_pts.copy()
+                    "points": active_points.copy()
                 })
                 zone_counter += 1
-                active_pts = []
+                active_points = []
                 print(f"Added zone table_{zone_counter-1}")
             else:
                 print("Need at least 3 points to make a polygon.")
         elif key == ord('u'):
-            if active_pts:
-                active_pts.pop()
+            if active_points:
+                active_points.pop()
         elif key == ord('s'):
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            save_zones(zones, w, h, ZONES_FILE)
+            save_zones(zones, w, h, 1, ZONES_FILE)
         elif key == ord('q'):
             break
 
@@ -190,7 +193,7 @@ def annotate(camera_index: int = CAM_INDEX):
     if zones:
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        save_zones(zones, w, h, ZONES_FILE)
+        save_zones(zones, w, h, 1, ZONES_FILE)
 
     cap.release()
     cv2.destroyAllWindows()
@@ -203,7 +206,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
     if not ZONES_FILE.exists():
         raise FileNotFoundError("zones.json not found. Run annotate mode first.")
 
-    zones, img_meta = load_zones(ZONES_FILE)
+    zones, img_meta, camera_id = load_zones(ZONES_FILE)
     model = YOLO(MODEL_NAME)
     class_map = coco_names_from_model(model)
 
@@ -237,7 +240,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
                 pts = [(int(round(x * sx)), int(round(y * sy))) for (x, y) in z["points"]]
                 zones_scaled.append({"id": z["id"], "points": pts})
 
-    zone_mask = build_zone_mask(W, H, zones_scaled)
+    zone_mask = build_zone_mask(H, W, zones_scaled)
 
     # Time-based occupancy tracking
     zone_tracking = {}
@@ -247,7 +250,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
             "first_detected_time": None,      # When detection first started
             "last_detected_time": None,       # When detection was last seen
             "stable_occupied": False,        # Final stable state
-            "last_state_change": time.time()  # When state last changed
+            "last_state_change": current_timestamp()  # When state last changed (string for metadata)
         }
 
     last_write = 0.0
@@ -276,7 +279,8 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
         verbose=False
         )
 
-        current_time = time.time()
+        # use monotonic seconds for all arithmetic
+        current_time = now_seconds()
         
         # Reset detection state for all zones
         for zid in zone_tracking:
@@ -330,7 +334,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
                 detection_duration = current_time - tracking["first_detected_time"]
                 if detection_duration >= OCCUPIED_THRESHOLD and not tracking["stable_occupied"]:
                     tracking["stable_occupied"] = True
-                    tracking["last_state_change"] = current_time
+                    tracking["last_state_change"] = current_timestamp()
                     print(f"Zone {zid} marked as OCCUPIED after {detection_duration:.1f}s")
             else:
                 # Nothing detected in this zone
@@ -342,7 +346,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
                         # Been clear long enough - mark as unoccupied
                         if tracking["stable_occupied"]:
                             tracking["stable_occupied"] = False
-                            tracking["last_state_change"] = current_time
+                            tracking["last_state_change"] = current_timestamp()
                             print(f"Zone {zid} marked as UNOCCUPIED after {time_since_last_detection:.1f}s clear")
                         
                         # Reset detection tracking
@@ -389,11 +393,11 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
         cv2.imshow("Table Occupancy", frame)
 
         # Write JSON periodically
-        t = time.time()
+        t = now_seconds()
         if t - last_write >= write_interval:
             payload = {
                 "room_id": "lib_1",
-                "updated_at": time.time(),
+                "updated_at": current_timestamp(),
                 "zones": zone_stats
             }
             OUTPUT_FILE.write_text(json.dumps(payload, indent=2))
@@ -402,7 +406,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
         key = cv2.waitKey(1) & 0xFF
         if key == ord('w'):
             payload = {
-                "updated_at": time.time(),
+                "updated_at": current_timestamp(),
                 "zones": zone_stats
             }
             OUTPUT_FILE.write_text(json.dumps(payload, indent=2))
