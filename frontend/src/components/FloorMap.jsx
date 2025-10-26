@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { MapContainer, Circle, Polygon, Tooltip, useMap, ImageOverlay, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
-import { defaultRoom, mockOccupancyData } from '../lib/defaultRoom.js'
+import { defaultRoom, mockOccupancyData } from '../lib/mapped_buildings/245beacon/level2.js'
 import { useOccupancy } from '../lib/useOccupancy.js'
 import Legend from './Legend.jsx'
 import 'leaflet/dist/leaflet.css'
 
-// Brand color scheme (BC Theme - exact hex values)
+
 const COLORS = {
   burgundy: '#7B1E28',      // Occupied
   gold: '#D39B00',          // Empty  
@@ -32,12 +32,12 @@ const darkenColor = (color, percent = 10) => {
   return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
 }
 
-// Status to color mapping (BC Theme)
+// Status to color mapping
 const colorFor = (status) => {
   switch (status) {
-    case 'occupied': return COLORS.darkGray // Keep current dark gray for now
+    case 'occupied': return COLORS.burgundy
     case 'free': 
-    case 'empty': return COLORS.brightGreen // Keep current bright green for now
+    case 'empty': return COLORS.brightGreen 
     case 'unknown': 
     default: return COLORS.gray
   }
@@ -47,7 +47,7 @@ const strokeColorFor = (status) => {
   return darkenColor(colorFor(status), 10)
 }
 
-const opacityFor = (confidence) => {
+const opacityFor = (confidence) => { //note: we don't adjust opacity based on confidence for now
   return Math.max(0.3, Math.min(1.0, 0.3 + (confidence || 0.5) * 0.7))
 }
 
@@ -94,7 +94,7 @@ function RoomBackground({ room }) {
 }
 
 // Image overlay for the floorplan background spanning the room bounds
-function FloorplanLayer({ room, url = '/floorplan.jpg', opacity = 1 }) {
+function FloorplanLayer({ room, url = '/level2.jpg', opacity = 1 }) {
   const bounds = [
     [0, 0],
     [room.size.h, room.size.w]
@@ -119,8 +119,14 @@ function CoordinateHelper() {
 
 export default function FloorMap() {
   const [room, setRoom] = useState(defaultRoom)
+  const [selectedFloor, setSelectedFloor] = useState('level2')
   const [tables, setTables] = useState(mockOccupancyData.tables) // Initialize with mock data
   const layersRef = useRef({ tables: new Map(), seats: new Map() })
+  
+  //floors available in this building
+  const floors = [
+    { id: 'level2', label: defaultRoom.name, room: defaultRoom }
+  ]
   
   // Use the API hook to fetch occupancy data
   const { data: apiData, loading, error } = useOccupancy('lib_1', 3000)
@@ -133,8 +139,7 @@ export default function FloorMap() {
       const transformedTables = {}
       Object.entries(apiData.tablesById).forEach(([id, tableData]) => {
         transformedTables[id] = {
-          status: tableData.occupied ? 'occupied' : 'free',
-          confidence: tableData.conf
+          status: tableData.occupied ? 'occupied' : 'free'
         }
       })
       setTables(transformedTables)
@@ -146,7 +151,7 @@ export default function FloorMap() {
         if (layer) {
           const fillColor = colorFor(state.status)
           const strokeColor = strokeColorFor(state.status)
-          const opacity = opacityFor(state.confidence)
+          const opacity = opacityFor(state.confidence) //note: we don't adjust opacity based on confidence for now
           
           layer.setStyle({
             fillColor,
@@ -171,11 +176,10 @@ export default function FloorMap() {
   const renderTable = (table) => {
     const state = tables[table.id]
     const status = state?.status || 'unknown'
-    const confidence = state?.confidence || 0.5
+    const confidence = state?.confidence || 0.5 //note: we don't adjust opacity based on confidence for now
     const fillColor = colorFor(status)
     const strokeColor = strokeColorFor(status)
-    const opacity = opacityFor(confidence)
-    const tooltip = `${table.id}: ${status} (${Math.round(confidence * 100)}%)`
+    const opacity = opacityFor(confidence) //note: we don't adjust opacity based on confidence for now
 
     // Convert pixel coordinates to Leaflet coordinates [lat, lng] = [y, x]
     const center = [table.center[1], table.center[0]]
@@ -200,52 +204,9 @@ export default function FloorMap() {
         <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
           <div style={{ color: COLORS.ink }}>
             <strong>{table.id}</strong><br/>
-            {status} ({Math.round(confidence * 100)}%)
           </div>
         </Tooltip>
       </Circle>
-    )
-  }
-
-  const renderSeat = (seat) => {
-    const tooltip = `Chair: ${seat.id}`
-    
-    // Fixed burgundy color for all chairs
-    const chairColor = '#4f0f12'
-    const chairStroke = darkenColor(chairColor, 10)
-    
-    // Convert chair polygon coordinates to Leaflet format [lat, lng] = [y, x]
-    // Create a simple square around the seat position
-    const half = seat.size / 2
-    const seatPolygon = [
-      [seat.y - half, seat.x - half],
-      [seat.y - half, seat.x + half],
-      [seat.y + half, seat.x + half],
-      [seat.y + half, seat.x - half]
-    ]
-    
-    return (
-      <Polygon
-        key={seat.id}
-        positions={seatPolygon}
-        pathOptions={{
-          fillColor: chairColor,
-          fillOpacity: 1,
-          color: chairStroke,
-          weight: 1.5
-        }}
-        eventHandlers={{
-          add: (e) => {
-            layersRef.current.seats.set(seat.id, e.target)
-          }
-        }}
-      >
-        <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
-          <div style={{ color: COLORS.ink }}>
-            <strong>{tooltip}</strong>
-          </div>
-        </Tooltip>
-      </Polygon>
     )
   }
 
@@ -262,23 +223,27 @@ export default function FloorMap() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: COLORS.ink }}>
-              {room.name}
+              {room.building_id}
             </h1>
             <div className="mt-2">
               <select 
                 className="px-3 py-1 rounded border text-sm"
-                defaultValue="2"
+                value={selectedFloor}
                 style={{ 
                   borderColor: COLORS.gold,
                   backgroundColor: COLORS.ivoryWhite,
                   color: COLORS.ink
                 }}
+                onChange={(e) => {
+                  const id = e.target.value
+                  setSelectedFloor(id)
+                  const f = floors.find(fl => fl.id === id)
+                  if (f) setRoom(f.room)
+                }}
               >
-                <option value="1">Floor 1</option>
-                <option value="2">Floor 2</option>
-                <option value="3">Floor 3</option>
-                <option value="4">Floor 4</option>
-                <option value="5">Floor 5</option>
+                {floors.map(f => (
+                  <option key={f.id} value={f.id}>{f.label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -333,7 +298,7 @@ export default function FloorMap() {
             <CoordinateHelper />
             
             {/* Floorplan image spanning the full room */}
-            <FloorplanLayer room={room} />
+            <FloorplanLayer room={room} url={room.floorplan || '/level2.jpg'} />
             
             {/* Tables */}
             {room.tables.map(table => renderTable(table))}
