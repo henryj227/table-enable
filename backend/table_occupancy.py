@@ -54,22 +54,20 @@ def point_in_polygon(point, polygon):
     # returns True/False for point in polygon
     # used later for if detected object is in zone
 
-def draw_zones(image, zones, active_zone = None):
+def draw_zones(image, zones, active_zone=None):
     # draw all saved zones from file and currently active (being drawn) zone
     for z in zones:
         points = np.array(z["points"], np.int32)
-        cv2.polylines(image, [points], isClosed=True, color=(255,0,0), thickness=2)
-        M = cv2.moments(points)
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-            cv2.putText(image, z["id"], (cX - 20, cY), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)
+        cv2.polylines(image, [points], isClosed=True, color=(255, 0, 0), thickness=2)
+        cv2.putText(image, z["id"], tuple(points[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)
+
     # active zone (being drawn)
     if active_zone and len(active_zone) > 0:
-        points = np.array (active_zone, np.int32)
-        cv2.polylines(image, [points], isClosed=True, color=(0,255,0), thickness=2)
+        points = np.array(active_zone, np.int32)
+        cv2.polylines(image, [points], isClosed=True, color=(0, 255, 0), thickness=2)
         for p in active_zone:
-            cv2.circle(image, tuple(p), radius=5, color=(0,255,0), thickness=-1)
+            cv2.circle(image, tuple(p), radius=5, color=(0, 255, 0), thickness=-1)
+
 
 def save_zones(zones, image_w, image_h, camera_id, output_file=ZONES_FILE):
     payload = {
@@ -103,90 +101,85 @@ def coco_names_from_model(model):
 
 
 # =========================
-# Annotate Mode
+# ANNOTATION MODE
 # =========================
-def _open_camera(index: int):
-    """Open a camera index with a Windows-friendly backend if available."""
-    cap = None
-    # On Windows, DirectShow often works more reliably and faster to open
-    if os.name == 'nt':
+
+def open_camera(index: int):
+    capture = None
+    if os.name == 'nt': # if Windows OS, use DSHOW backend first
         try:
-            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-            if cap is not None and cap.isOpened():
-                return cap
-            if cap is not None:
-                cap.release()
+            capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if capture is not None and capture.isOpened():
+                return capture
+            if capture is not None:
+                capture.release()
         except Exception:
             pass
-    # Fallback to default backend
-    cap = cv2.VideoCapture(index)
-    return cap
+    # fallback to default backend (takes FOREVER :sob:)
+    capture = cv2.VideoCapture(index)
+    return capture
 
 
 def annotate(camera_index: int = CAM_INDEX):
-    cap = _open_camera(camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+    capture = open_camera(camera_index)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
 
     zones = []
     active_points = []
     zone_counter = 1
 
+    print("----------------------------------------")
+    print("")
     print("Annotation controls:")
-    print("  - Left click: add point to current polygon")
-    print("  - 'n'       : finish current polygon (creates a new zone)")
-    print("  - 'u'       : undo last point")
-    print("  - 's'       : save zones.json")
-    print("  - 'q'       : quit")
+    print("   - Left click: add point to current polygon")
+    print("   - n       : finish current polygon (creating new zone)")
+    print("   - u       : undo last point")
+    print("   - s       : save zones to zones.json")
+    print("   - q       : exit)")
+    print("-----------------------------------------")
 
     def on_mouse(event, x, y, flags, param):
         nonlocal active_points
         if event == cv2.EVENT_LBUTTONDOWN:
             active_points.append((x, y))
 
-    cv2.namedWindow("Annotate Tables")
-    cv2.setMouseCallback("Annotate Tables", on_mouse)
+    cv2.namedWindow("Annotate Tables") # create window
+    cv2.setMouseCallback("Annotate Tables", on_mouse) # set mouse to window
 
     while True:
-        ok, frame = cap.read()
-        if not ok:
+        opencvstatus, frame = capture.read() # read frame from camera
+        if opencvstatus == False: # if unable to read frame, exit
             break
 
-        draw_zones(frame, zones, active_points)
-        cv2.putText(frame, f"Zone points: {len(active_points)}", (10, 25),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+        draw_zones(frame, zones, active_points) # draw zones
 
-        cv2.imshow("Annotate Tables", frame)
-        key = cv2.waitKey(10) & 0xFF
+        cv2.imshow("Annotate Tables", frame) # updates window with frame (live feed)
 
-        if key == ord('n'):
+        key = cv2.waitKey(10) & 0xFF # wait for key press (10ms), masked to 8 bits
+
+        if key == ord('n'): # finish current polygon
             if len(active_points) >= 3:
                 zones.append({
-                    "id": f"table_{zone_counter}",
+                    "id": f"zone_{zone_counter}",
                     "points": active_points.copy()
                 })
                 zone_counter += 1
                 active_points = []
-                print(f"Added zone table_{zone_counter-1}")
+                print(f"Added zone zone_{zone_counter-1}")
             else:
                 print("Need at least 3 points to make a polygon.")
-        elif key == ord('u'):
+        elif key == ord('u'): # undo last point
             if active_points:
                 active_points.pop()
-        elif key == ord('s'):
-            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        elif key == ord('s'): # save zones to file
+            h = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            w = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
             save_zones(zones, w, h, 1, ZONES_FILE)
-        elif key == ord('q'):
+        elif key == ord('q'): # quit
             break
 
-    # save on exit if any
-    if zones:
-        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        save_zones(zones, w, h, 1, ZONES_FILE)
-
-    cap.release()
+    capture.release() 
     cv2.destroyAllWindows()
 
 
@@ -208,12 +201,12 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
     }
 
     # Open camera consistently with annotate() for better Windows support
-    cap = _open_camera(camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+    capture = open_camera(camera_index)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
 
     # Build static ROI mask
-    ret, test_frame = cap.read()
+    ret, test_frame = capture.read()
     if not ret:
         raise RuntimeError("Cannot read from webcam.")
     H, W = test_frame.shape[:2]
@@ -253,7 +246,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
         pass
 
     while True:
-        ok, frame = cap.read()
+        ok, frame = capture.read()
         if not ok:
             break
 
@@ -405,7 +398,7 @@ def run_detection(conf_thres=0.30, iou_thres=0.45, camera_index: int = CAM_INDEX
         elif key == ord('q'):
             break
 
-    cap.release()
+    capture.release()
     cv2.destroyAllWindows()
 
 
