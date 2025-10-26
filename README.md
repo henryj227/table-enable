@@ -1,131 +1,74 @@
 # Table Enable
 
-A single-page React app that displays a live SVG room map with real-time table and seat occupancy updates via WebSocket.
+Frontend + backend split with a simple file-based interface for occupancy status.
 
-## Features
+## Structure
 
-- **Live Room Map**: Responsive SVG floor plan with real-time occupancy visualization
-- **WebSocket Integration**: Auto-reconnecting WebSocket client with exponential backoff
-- **Status Visualization**: Color-coded tables and seats (green=empty, red=occupied, gray=unknown)
-- **Confidence Indicators**: Opacity reflects model confidence (0.3-1.0 range)
-- **Accessibility**: Semantic HTML, ARIA labels, and keyboard navigation support
-- **Dark Mode**: Automatic system theme detection
-- **Responsive Design**: Works on desktop and mobile devices
+- `frontend/` — React + Vite app that renders the floorplan and polls `occupancy.json`.
+- `backend/` — Python YOLO script that detects occupancy from a webcam and writes `occupancy.json`.
+- Root — shared docs/config like this `README.md` and `.gitignore`.
 
-## Quick Start
+## Data Flow
 
-1. **Install dependencies**:
+`backend/table_occupancy.py` writes `frontend/public/occupancy.json` on a cadence. The frontend fetches that file from the same origin at `/occupancy.json` and renders table statuses.
 
-   ```bash
-   npm install
-   ```
+## Frontend (Vite + React)
 
-2. **Set up environment**:
+Setup and run the dev server:
 
-   ```bash
-   cp env.example .env
-   ```
-
-3. **Start development server**:
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Open browser**: Navigate to `http://localhost:3000`
-
-## Testing with Mock Backend
-
-To test the WebSocket functionality without a real backend:
-
-1. **Start test HTTP server** (in a new terminal):
-
-   ```bash
-   node test-server.js
-   ```
-
-2. **Start test WebSocket server** (in another terminal):
-
-   ```bash
-   node test-websocket.js
-   ```
-
-3. **Update environment** (edit `.env`):
-
-   ```
-   VITE_BACKEND_URL=http://localhost:8000
-   VITE_WS_URL=ws://localhost:8001
-   ```
-
-4. **Restart dev server**:
-   ```bash
-   npm run dev
-   ```
-
-## Data Format
-
-### WebSocket Messages
-
-The app expects WebSocket messages in this format:
-
-```json
-{
-  "people_count": 12,
-  "fps": 30,
-  "tables": [{ "id": "table-1", "status": "occupied", "confidence": 0.92 }],
-  "seats": [{ "id": "t1", "status": "empty", "confidence": 0.85 }]
-}
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-### Room API
+By default the app fetches `/occupancy.json`. You can override with an env var:
 
-The app fetches room geometry from `GET /api/room`:
-
-```json
-{
-  "room_id": "room-1",
-  "name": "Demo Room",
-  "size": { "w": 800, "h": 500 },
-  "tables": [
-    { "id": "table-1", "polygon": [[x,y], [x,y], ...] }
-  ],
-  "seats": [
-    { "id": "t1", "polygon": [[x,y], [x,y], ...] }
-  ]
-}
+```bash
+# .env (or export before running dev)
+VITE_OCCUPANCY_URL=https://your.cdn/path/occupancy.json
 ```
 
-## Environment Variables
+Build for production:
 
-- `VITE_BACKEND_URL`: Backend API URL (default: `http://localhost:8000`)
-- `VITE_WS_URL`: WebSocket URL (default: `ws://localhost:8000/ws/occupancy`)
+```bash
+npm run build
+npm run preview
+```
 
-## Status Colors
+## Backend (Python + YOLOv8)
 
-- **Green** (`#22c55e`): Empty/available
-- **Red** (`#ef4444`): Occupied/in-use
-- **Gray** (`#9ca3af`): Unknown status
+Dependencies:
 
-Opacity reflects model confidence (0.3-1.0 range).
+```bash
+cd backend
+python -m venv .venv
+./.venv/Scripts/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-## Scripts
+Annotate zones (click to add points, press `n` to close a polygon, `s` to save, `q` to quit):
 
-- `npm run dev`: Start development server
-- `npm run build`: Build for production
-- `npm run preview`: Preview production build
-- `npm run lint`: Run ESLint
+```bash
+python table_occupancy.py annotate --camera 0
+```
 
-## Architecture
+Run detection (writes `../frontend/public/occupancy.json` periodically):
 
-- **React 18**: Modern React with hooks
-- **Vite**: Fast build tool and dev server
-- **Tailwind CSS**: Utility-first styling
-- **WebSocket**: Real-time communication
-- **SVG**: Scalable vector graphics for maps
+```bash
+python table_occupancy.py run --camera 0
+```
 
-## Browser Support
+Notes:
+- Edit `CAM_INDEX` or pass `--camera` to choose your webcam.
+- The script saves `zones.json` next to `table_occupancy.py` and writes `occupancy.json` to `frontend/public/`.
 
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+## Deploying with a Cloud Host
+
+- Option A: Publish `occupancy.json` to a CDN (S3/CloudFront, Azure Blob) and set `VITE_OCCUPANCY_URL` to that URL. Ensure CORS allows your site origin and disable caching or version the file.
+- Option B: Serve `occupancy.json` from the same origin as the site (e.g., copy to your web root on deploy) to avoid CORS entirely.
+
+## File Conventions
+
+- Floorplan image is in `frontend/public/floorplan.jpg` and referenced by the app as `/floorplan.jpg`.
+- Ignore files are configured in `.gitignore` for `frontend/node_modules`, `backend/zones.json`, and `frontend/public/occupancy.json`.
