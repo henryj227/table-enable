@@ -1,6 +1,17 @@
+# Root ignores
 node_modules
 venv
 yolov8s.pt
 zones.json
 occupancy.json
 package-lock.json
+
+# Frontend
+frontend/node_modules
+frontend/.vite
+frontend/package-lock.json
+frontend/public/occupancy.json
+
+# Backend
+backend/venv
+backend/zones.json

@@ -1,6 +1,6 @@
 
 export async function getOccupancy(roomId) {
-    const url = `occupancy.json`
+    const url = import.meta.env?.VITE_OCCUPANCY_URL || `/occupancy.json`;
     console.log(url);
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);

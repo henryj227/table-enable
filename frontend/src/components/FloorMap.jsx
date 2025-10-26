@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { MapContainer, Circle, Polygon, Tooltip, useMap, Rectangle, Marker } from 'react-leaflet'
+import { MapContainer, Circle, Polygon, Tooltip, useMap, ImageOverlay, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { defaultRoom, mockOccupancyData } from '../lib/defaultRoom.js'
 import { useOccupancy } from '../lib/useOccupancy.js'
@@ -93,70 +93,28 @@ function RoomBackground({ room }) {
   )
 }
 
-// Component to render a 4x4 grid of labeled squares (4 columns, 4 rows)
-function GridSquares() {
-  const squareSize = 1200 // Size of each square (must match gridSquareSize in defaultRoom.js) - MUCH bigger
-  const startX = 0 // Start at map origin
-  const startY = 0 // Start at map origin
-  const cols = 4 // 4 columns (left to right) - expanded to include sections 9 and 10
-  const rows = 4 // 4 rows (top to bottom)
-  
-  const squares = []
-  let label = 1
-  
-  // Sections to make gray (no labels)
-  const graySections = [3, 4, 7, 8, 11, 12]
-  
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const x = startX + (col * squareSize)
-      const y = startY + (row * squareSize)
-      
-      // Rectangle bounds: [[y1, x1], [y2, x2]]
-      const bounds = [
-        [y, x],
-        [y + squareSize, x + squareSize]
-      ]
-      
-      const isGray = graySections.includes(label)
-      
-      squares.push(
-        <Rectangle
-          key={`square-${label}`}
-          bounds={bounds}
-          pathOptions={{
-            fillColor: isGray ? COLORS.gray : COLORS.white,
-            fillOpacity: 1,
-            color: '#000000', // Black lines
-            weight: 2,
-            opacity: 1
-          }}
-          pane="overlayPane" // Render above the room background
-        >
-          {!isGray && (
-            <Tooltip 
-              permanent 
-              direction="center" 
-              className="grid-label-tooltip"
-              opacity={1}
-            >
-              <div style={{ 
-                color: COLORS.ink, 
-                fontSize: '24px', 
-                fontWeight: 'bold',
-                textAlign: 'center'
-              }}>
-                {label}
-              </div>
-            </Tooltip>
-          )}
-        </Rectangle>
-      )
-      label++
+// Image overlay for the floorplan background spanning the room bounds
+function FloorplanLayer({ room, url = '/floorplan.jpg', opacity = 1 }) {
+  const bounds = [
+    [0, 0],
+    [room.size.h, room.size.w]
+  ]
+  return (
+    <ImageOverlay url={url} bounds={bounds} opacity={opacity} pane="tilePane" />
+  )
+}
+
+// Simple helper to log click coordinates (y, x) to the console for mapping
+function CoordinateHelper() {
+  useMapEvents({
+    click: (e) => {
+      const { lat, lng } = e.latlng
+      // Leaflet CRS.Simple uses [lat, lng] as [y, x]
+      // eslint-disable-next-line no-console
+      console.log(`Clicked at pixel coords -> x: ${lng.toFixed(1)}, y: ${lat.toFixed(1)}`)
     }
-  }
-  
-  return <>{squares}</>
+  })
+  return null
 }
 
 export default function FloorMap() {
@@ -369,9 +327,10 @@ export default function FloorMap() {
             maxBoundsViscosity={0.5}
           >
             <MapBounds room={room} />
+            <CoordinateHelper />
             
-            {/* 2x4 Grid of labeled squares - this IS the room */}
-            <GridSquares />
+            {/* Floorplan image spanning the full room */}
+            <FloorplanLayer room={room} />
             
             {/* Tables */}
             {room.tables.map(table => renderTable(table))}
