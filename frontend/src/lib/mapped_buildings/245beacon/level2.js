@@ -84,7 +84,6 @@ export const mockOccupancyData = {
     "table_18": { status: "occupied", confidence: 0.80 },
     "table_19": { status: "free", confidence: 0.95 },
     "table_20": { status: "occupied", confidence: 0.77 },
-    "table_21": { status: "free", confidence: 0.91 },
-    "table_22": { status: "occupied", confidence: 0.83 }
+    "table_21": { status: "free", confidence: 0.91 }
   }
 }
