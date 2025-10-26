@@ -267,12 +267,20 @@ def run_detection(confidence_threshold=0.30, iou_threshold=0.45, camera_index: i
             if r.boxes is not None and len(r.boxes) > 0:
                 boxes = r.boxes.xyxy.cpu().numpy().astype(int)      # pixel coords
                 class_ids = r.boxes.cls.cpu().numpy().astype(int)   # class IDs
-                confidence = r.boxes.conf.cpu().numpy()             # confidences
+                confs = r.boxes.conf.cpu().numpy()                  # confidences
 
-                for (x1,y1,x2,y2), class_id, confidence in zip(boxes, class_ids, confidence): #for each detection
+                for (x1,y1,x2,y2), class_id, conf in zip(boxes, class_ids, confs): #for each detection
                     class_name = class_map.get(class_id, str(class_id)) #get class name
                     if class_name not in ALLOWED_CLASSES:
                         continue 
+
+                    # draw detection bbox with label and confidence
+                    label = f"{class_name} {conf:.2f}"
+                    (tw, th), bl = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1) #label background
+                    y_text = max(0, y1 - 8)
+                    y_bg_top = max(0, y_text - th - 4)
+                    cv2.rectangle(frame, (x1, y_bg_top), (x1 + tw + 2, y_text + 2), (0, 0, 0), -1)
+                    cv2.putText(frame, label, (x1 + 1, y_text), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
 
                     #calculate center of detected box
                     center_x = int((x1 + x2) / 2)
