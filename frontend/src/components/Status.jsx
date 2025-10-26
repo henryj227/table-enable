@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { defaultRoom, mockOccupancyData } from '../lib/defaultRoom.js'
+import { defaultRoom, mockOccupancyData } from '../lib/mapped_buildings/245beacon/level2.js'
 import { useOccupancy } from '../lib/useOccupancy.js'
 
 // Brand color scheme
